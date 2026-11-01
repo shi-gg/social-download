@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Social Download</title>
+  <meta name="description" content="Download a video from a social link and compress it to a size you choose.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">↓</span>
+        <span>Social Download</span>
+      </div>
+    </header>
+
+    <section class="card" aria-labelledby="form-title">
+      <h1 id="form-title">Download a video</h1>
+      <form id="download-form" novalidate>
+        <div class="field">
+          <label for="url">Video URL</label>
+          <input id="url" name="url" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+                 placeholder="https://youtube.com/watch?v=…" required>
+        </div>
+
+        <div class="form-row">
+          <div class="field">
+            <label for="size">Target size</label>
+            <select id="size" name="size">
+              <option value="0">Original quality</option>
+              <option value="4">Up to 4 MB</option>
+              <option value="8">Up to 8 MB</option>
+              <option value="16">Up to 16 MB</option>
+              <option value="32">Up to 32 MB</option>
+              <option value="64">Up to 64 MB</option>
+              <option value="128">Up to 128 MB</option>
+              <option value="custom">Custom…</option>
+            </select>
+          </div>
+
+          <div class="field custom-size" id="custom-wrap" hidden>
+            <label for="custom-size">Max MB</label>
+            <input id="custom-size" type="number" inputmode="numeric" min="1" max="8192" step="1" value="8">
+          </div>
+
+          <button class="primary" id="submit" type="submit">Download</button>
+        </div>
+
+        <p class="error" id="error" role="alert" hidden></p>
+      </form>
+    </section>
+
+    <section class="card progress-card" id="progress-card" aria-live="polite" hidden>
+      <div class="progress-head">
+        <span id="phase">Starting…</span>
+        <span id="percent">0%</span>
+      </div>
+      <div class="bar" id="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="bar-fill" id="bar-fill"></div>
+      </div>
+      <button class="ghost" id="cancel" type="button">Cancel</button>
+    </section>
+
+    <section class="card result" id="result" hidden>
+      <div class="result-head">
+        <div>
+          <h2 id="title"></h2>
+          <p class="meta" id="meta"></p>
+        </div>
+        <a class="ghost" id="save-link" href="#" download>Save file</a>
+      </div>
+      <video id="video" controls playsinline preload="metadata"></video>
+      <p class="footnote" id="size-note"></p>
+    </section>
+  </main>
+</body>
+</html>

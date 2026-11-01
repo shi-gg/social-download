@@ -1,0 +1,7 @@
+/data/
+/social-download
+*.test
+*.out
+.DS_Store
+
+*_test.go
