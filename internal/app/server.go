@@ -1,6 +1,9 @@
 package app
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"crypto/subtle"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -10,6 +13,8 @@ import (
 	"mime"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -43,6 +48,17 @@ func New(cfg Config, logger *slog.Logger) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("couldn't load the web assets: %w", err)
 	}
+	indexHTML, err := fs.ReadFile(static, "index.html")
+	if err != nil {
+		return nil, fmt.Errorf("couldn't load the index page: %w", err)
+	}
+	passwordRequired := strconv.FormatBool(cfg.DownloadPassword != "")
+	indexHTML = bytes.ReplaceAll(indexHTML, []byte("__DOWNLOAD_PASSWORD_REQUIRED__"), []byte(passwordRequired))
+	passwordFieldHidden := []byte("hidden")
+	if cfg.DownloadPassword != "" {
+		passwordFieldHidden = nil
+	}
+	indexHTML = bytes.ReplaceAll(indexHTML, []byte("__DOWNLOAD_PASSWORD_HIDDEN__"), passwordFieldHidden)
 	fileServer := http.FileServerFS(static)
 
 	s := &Server{cfg: cfg, log: logger, mgr: mgr}
@@ -54,10 +70,15 @@ func New(cfg Config, logger *slog.Logger) (*Server, error) {
 	mux.HandleFunc("GET /media/{id}", s.serveMedia)
 	mux.Handle("GET /", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache")
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = w.Write(indexHTML)
+			return
+		}
 		fileServer.ServeHTTP(w, r)
 	}))
 
-	s.handler = s.recoverPanics(s.logRequests(s.securityHeaders(mux)))
+	s.handler = s.recoverPanics(s.logRequests(s.securityHeaders(s.passwordProtection(mux))))
 	return s, nil
 }
 
@@ -151,6 +172,34 @@ func (s *Server) serveMedia(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": name}))
 	w.Header().Set("Cache-Control", "private, max-age=3600")
 	http.ServeContent(w, r, name, modTime, file)
+}
+
+func (s *Server) passwordProtection(next http.Handler) http.Handler {
+	if s.cfg.DownloadPassword == "" {
+		return next
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !isAPIPath(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if !passwordMatches(r.Header.Get("X-Download-Password"), s.cfg.DownloadPassword) {
+			writeError(w, http.StatusUnauthorized, "a valid download password is required")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func isAPIPath(path string) bool {
+	return path == "/api" || strings.HasPrefix(path, "/api/")
+}
+
+func passwordMatches(provided, expected string) bool {
+	providedHash := sha256.Sum256([]byte(provided))
+	expectedHash := sha256.Sum256([]byte(expected))
+	return subtle.ConstantTimeCompare(providedHash[:], expectedHash[:]) == 1
 }
 
 func (s *Server) securityHeaders(next http.Handler) http.Handler {

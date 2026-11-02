@@ -18,6 +18,7 @@ type Config struct {
 	FFmpeg           string
 	FFprobe          string
 	Cookies          string
+	DownloadPassword string
 	Version          string
 	MaxDownloadBytes int64
 	MaxDuration      time.Duration
@@ -52,6 +53,9 @@ func ConfigFromEnv() (Config, error) {
 	cfg.FFmpeg = envString("FFMPEG_BIN", cfg.FFmpeg)
 	cfg.FFprobe = envString("FFPROBE_BIN", cfg.FFprobe)
 	cfg.Cookies = envString("YTDLP_COOKIES_FILE", "")
+	if password, ok := os.LookupEnv("DOWNLOAD_PASSWORD"); ok && password != "" {
+		cfg.DownloadPassword = password
+	}
 
 	var err error
 	if cfg.MaxDownloadBytes, err = envMegabytes("MAX_DOWNLOAD_MB", cfg.MaxDownloadBytes); err != nil {
