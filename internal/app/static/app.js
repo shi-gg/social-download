@@ -30,6 +30,9 @@ const state = {
   password: "",
 };
 
+registerServiceWorker();
+fillFromShareTarget();
+
 const passwordRequired = passwordWrap.dataset.passwordRequired === "true";
 passwordWrap.hidden = !passwordRequired;
 passwordInput.required = passwordRequired;
@@ -60,20 +63,6 @@ form.addEventListener("submit", (event) => {
     return;
   }
 
-  let parsed;
-  try {
-    parsed = new URL(url);
-  } catch {
-    showError("That doesn't look like a link. Include https:// and try again.");
-    urlInput.focus();
-    return;
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    showError("Only http and https links are supported.");
-    urlInput.focus();
-    return;
-  }
-
   const maxBytes = readMaxBytes();
   if (maxBytes === null) {
     return;
@@ -86,6 +75,37 @@ form.addEventListener("submit", (event) => {
 
   startJob(url, maxBytes, password);
 });
+
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    return;
+  }
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/service-worker.js", { updateViaCache: "none" }).catch(() => {
+      // The app remains fully usable when service workers are unavailable.
+    });
+  }, { once: true });
+}
+
+function fillFromShareTarget() {
+  const params = new URLSearchParams(window.location.search);
+  const sharedURL = params.get("url") || extractURL(params.get("text"));
+  if (!sharedURL) {
+    return;
+  }
+
+  urlInput.value = sharedURL;
+  clearError();
+  window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.hash}`);
+}
+
+function extractURL(text) {
+  if (!text) {
+    return "";
+  }
+  const match = text.match(/https?:\/\/[^\s<>"']+/i);
+  return match ? match[0] : "";
+}
 
 async function startJob(url, maxBytes, password) {
   state.password = password;

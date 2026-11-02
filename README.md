@@ -79,6 +79,8 @@ go run ./cmd/server
 
 Then open <http://localhost:8080>. Downloads go to `./data`.
 
+The site is also a PWA. Use your browser's install option to add it to your device; once installed, Social Download appears in the system share sheet and accepts shared video links or text containing a supported link.
+
 To build the container from source instead of using the published image:
 
 ```bash
