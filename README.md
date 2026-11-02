@@ -41,6 +41,8 @@ services:
             MAX_DOWNLOAD_MB: "1024"
             MAX_DURATION_MINUTES: "120"
             MAX_CONCURRENT_JOBS: "2"
+            # Optional: require this password for all /api requests.
+            DOWNLOAD_PASSWORD: ${DOWNLOAD_PASSWORD:-}
         volumes:
             - social-download-data:/data
         logging:
@@ -94,6 +96,7 @@ The following env variables can be set for the server.
 | `FFMPEG_BIN` | `ffmpeg` | FFmpeg executable |
 | `FFPROBE_BIN` | `ffprobe` | FFprobe executable |
 | `YTDLP_COOKIES_FILE` | — | Optional cookies file for yt-dlp |
+| `DOWNLOAD_PASSWORD` | — | Optional password required for every `/api` request; leave unset or empty to disable |
 | `MAX_DOWNLOAD_MB` | `1024` | Maximum source download size |
 | `MAX_DURATION_MINUTES` | `120` | Maximum video duration |
 | `JOB_TIMEOUT_MINUTES` | `30` | Per-job time limit |
@@ -117,6 +120,8 @@ A target that is too small for the video's duration gets a clear error with the 
 - `DELETE /api/jobs/{id}` — cancel an active job or delete a finished one.
 - `GET /media/{id}` — the MP4, with HTTP range support.
 - `GET /api/health` — health check.
+
+When `DOWNLOAD_PASSWORD` is set, send it in the `X-Download-Password` header for every `/api` request. The `/media/{id}` URL remains public so video playback, saving, and copied media URLs continue to work without the password.
 
 ## Development
 The GitHub Actions workflow in `.github/workflows/build.yml` runs `go vet` and `go test`, then builds and publishes a multi-arch (`linux/amd64`, `linux/arm64`) image. Pushes to `main` publish `latest` and a SHA tag, while `v*` tags also publish semantic version tags:
