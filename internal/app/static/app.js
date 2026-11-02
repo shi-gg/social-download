@@ -17,10 +17,12 @@ const metaLabel = document.getElementById("meta");
 const sizeNote = document.getElementById("size-note");
 const video = document.getElementById("video");
 const saveLink = document.getElementById("save-link");
+const copyURLButton = document.getElementById("copy-url");
 
 const state = {
   id: null,
   timer: null,
+  copyResetTimer: null,
   running: false,
   pollFailures: 0,
 };
@@ -187,6 +189,7 @@ function finishJob(job) {
 
   saveLink.href = job.mediaUrl;
   saveLink.download = job.fileName || "video.mp4";
+  copyURLButton.disabled = false;
   video.src = job.mediaUrl;
   video.load();
   resultCard.hidden = false;
@@ -238,7 +241,48 @@ function hideResult() {
     video.load();
   }
   saveLink.removeAttribute("href");
+  copyURLButton.disabled = true;
+  copyURLButton.textContent = "Copy URL";
+  clearTimeout(state.copyResetTimer);
   document.title = "Social Download";
+}
+
+copyURLButton.addEventListener("click", async () => {
+  const mediaURL = saveLink.getAttribute("href");
+  if (!mediaURL) {
+    return;
+  }
+
+  try {
+    await copyText(new URL(mediaURL, window.location.href).href);
+    copyURLButton.textContent = "Copied!";
+    clearTimeout(state.copyResetTimer);
+    state.copyResetTimer = setTimeout(() => {
+      copyURLButton.textContent = "Copy URL";
+    }, 1600);
+  } catch {
+    showError("Couldn't copy the video URL. Please copy it manually.");
+  }
+});
+
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.setAttribute("readonly", "");
+  textArea.style.position = "fixed";
+  textArea.style.opacity = "0";
+  document.body.appendChild(textArea);
+  textArea.select();
+  const copied = document.execCommand("copy");
+  textArea.remove();
+  if (!copied) {
+    throw new Error("copy failed");
+  }
 }
 
 function showError(message) {

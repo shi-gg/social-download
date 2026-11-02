@@ -285,7 +285,13 @@ select:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
-.result-head .ghost {
+.result-actions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
+.result-actions .ghost {
   flex: none;
   white-space: nowrap;
 }
@@ -344,6 +350,14 @@ video {
   .result-head {
     flex-direction: column;
     gap: 14px;
+  }
+
+  .result-actions {
+    width: 100%;
+  }
+
+  .result-actions .ghost {
+    flex: 1;
   }
 }
 
