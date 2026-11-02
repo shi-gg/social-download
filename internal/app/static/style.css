@@ -105,6 +105,10 @@ h2 {
   gap: 7px;
 }
 
+.password-field {
+  margin-top: 14px;
+}
+
 label {
   color: var(--muted);
   font-size: 12px;

@@ -1,5 +1,7 @@
 const form = document.getElementById("download-form");
 const urlInput = document.getElementById("url");
+const passwordWrap = document.getElementById("password-wrap");
+const passwordInput = document.getElementById("password");
 const sizeSelect = document.getElementById("size");
 const customWrap = document.getElementById("custom-wrap");
 const customInput = document.getElementById("custom-size");
@@ -25,7 +27,12 @@ const state = {
   copyResetTimer: null,
   running: false,
   pollFailures: 0,
+  password: "",
 };
+
+const passwordRequired = passwordWrap.dataset.passwordRequired === "true";
+passwordWrap.hidden = !passwordRequired;
+passwordInput.required = passwordRequired;
 
 sizeSelect.addEventListener("change", () => {
   customWrap.hidden = sizeSelect.value !== "custom";
@@ -72,17 +79,23 @@ form.addEventListener("submit", (event) => {
     return;
   }
 
-  startJob(url, maxBytes);
+  const password = readPassword();
+  if (password === null) {
+    return;
+  }
+
+  startJob(url, maxBytes, password);
 });
 
-async function startJob(url, maxBytes) {
+async function startJob(url, maxBytes, password) {
+  state.password = password;
   setRunning(true);
   showProgress(2, "Starting…");
 
   try {
     const response = await fetch("/api/jobs", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: apiHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ url, maxBytes }),
     });
     const data = await readJSON(response);
@@ -111,7 +124,10 @@ async function pollJob() {
     return;
   }
   try {
-    const response = await fetch(`/api/jobs/${encodeURIComponent(id)}`, { cache: "no-store" });
+    const response = await fetch(`/api/jobs/${encodeURIComponent(id)}`, {
+      cache: "no-store",
+      headers: apiHeaders(),
+    });
     if (state.id !== id) {
       return;
     }
@@ -163,6 +179,7 @@ function renderJob(job) {
 function finishJob(job) {
   clearTimeout(state.timer);
   state.id = null;
+  state.password = "";
   setRunning(false);
   hideProgress();
 
@@ -199,6 +216,7 @@ function finishJob(job) {
 function failJob(message) {
   clearTimeout(state.timer);
   state.id = null;
+  state.password = "";
   setRunning(false);
   hideProgress();
   showError(message);
@@ -211,6 +229,7 @@ function setRunning(running) {
   urlInput.disabled = running;
   sizeSelect.disabled = running;
   customInput.disabled = running;
+  passwordInput.disabled = running;
   cancelButton.disabled = false;
 }
 
@@ -311,6 +330,25 @@ function readMaxBytes() {
   return Number(sizeSelect.value) * 1024 * 1024;
 }
 
+function readPassword() {
+  if (!passwordRequired) {
+    return "";
+  }
+  if (!passwordInput.value) {
+    showError("Enter the download password.");
+    passwordInput.focus();
+    return null;
+  }
+  return passwordInput.value;
+}
+
+function apiHeaders(headers = {}) {
+  if (!passwordRequired) {
+    return headers;
+  }
+  return { ...headers, "X-Download-Password": state.password };
+}
+
 async function readJSON(response) {
   try {
     return await response.json();
@@ -348,13 +386,18 @@ function formatDuration(seconds) {
 
 cancelButton.addEventListener("click", async () => {
   const id = state.id;
+  const password = state.password;
   state.id = null;
+  state.password = "";
   clearTimeout(state.timer);
   hideProgress();
   setRunning(false);
   if (id) {
     try {
-      await fetch(`/api/jobs/${encodeURIComponent(id)}`, { method: "DELETE" });
+      await fetch(`/api/jobs/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: passwordRequired ? { "X-Download-Password": password } : {},
+      });
     } catch {
       // The job will expire on the server even if this request is lost.
     }
